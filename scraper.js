@@ -10,14 +10,13 @@ const OUTPUT_FILE = path.join(process.cwd(), "gkd_data.json");
     executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
     defaultViewport: null
   });
-
+// PLEASE USE YOUR OWN CHROME PATH !!!
   const page = await browser.newPage();
   await page.goto(
     "https://guvenilirgida.tarimorman.gov.tr/GuvenilirGida/gkd/TaklitVeyaTagsis",
     { waitUntil: "networkidle2" }
   );
 
-  // Buton ve dropdown yüklenene kadar bekle
   await new Promise(resolve => setTimeout(resolve, 4000));
 
   await page.waitForSelector("#btn-taklit-1");
@@ -27,8 +26,7 @@ const OUTPUT_FILE = path.join(process.cwd(), "gkd_data.json");
   await page.select('select[name="tblTagsis_length"]', "-1");
 
   await page.waitForSelector("#tblTagsis tbody tr");
-
-  // Tablo satırlarını çekiyor
+  
   const rows = await page.$$eval("#tblTagsis tbody tr", rows =>
     rows.map(row => {
       const cells = row.querySelectorAll("td");
@@ -49,10 +47,10 @@ const OUTPUT_FILE = path.join(process.cwd(), "gkd_data.json");
 
   console.log(`Toplam kayıt: ${rows.length}`);
 
-  // JSON dosyasına kaydet (varsa eskiyi sil)
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(rows, null, 2));
 
   console.log(`Tüm veriler '${OUTPUT_FILE}' dosyasına kaydedildi.`);
 
   await browser.close();
 })();
+
