@@ -5,6 +5,7 @@ It uses Puppeteer-core to navigate the website, click necessary buttons, select 
 The scraper is designed to handle all entries, ensuring complete data collection for analysis or research purposes.
 
 Features:
+
   Full table extraction from the Ministry of Agriculture’s GKD portal
   
   Headless or non-headless browser support
