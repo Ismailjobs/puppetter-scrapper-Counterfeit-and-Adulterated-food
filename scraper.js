@@ -1,14 +1,32 @@
 import puppeteer from "puppeteer-core";
 import fs from "fs";
 import path from "path";
+import mongoose from "mongoose";
 
 const OUTPUT_FILE = path.join(process.cwd(), "gkd_data.json");
+
+const MONGO_URI = "mongodb://127.0.0.1:27017/gkd";
+await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+
+const GidaSchema = new mongoose.Schema({
+  duyuruTarihi: String,
+  firmaAdi: String,
+  marka: String,
+  urunAdi: String,
+  uygunsuzluk: [String],
+  partiNo: String,
+  ilce: String,
+  il: String,
+  urunGrubu: String,
+});
+
+const GidaModel = mongoose.model("Gida", GidaSchema);
 
 (async () => {
   const browser = await puppeteer.launch({
     headless: false,
     executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    defaultViewport: null
+    defaultViewport: null,
   });
 
   const page = await browser.newPage();
@@ -17,8 +35,7 @@ const OUTPUT_FILE = path.join(process.cwd(), "gkd_data.json");
     { waitUntil: "networkidle2" }
   );
 
-  // Buton ve dropdown yüklenene kadar bekle
-  await new Promise(resolve => setTimeout(resolve, 4000));
+  await new Promise((resolve) => setTimeout(resolve, 4000));
 
   await page.waitForSelector("#btn-taklit-1");
   await page.click("#btn-taklit-1");
@@ -28,31 +45,39 @@ const OUTPUT_FILE = path.join(process.cwd(), "gkd_data.json");
 
   await page.waitForSelector("#tblTagsis tbody tr");
 
-  // Tablo satırlarını çekiyor
-  const rows = await page.$$eval("#tblTagsis tbody tr", rows =>
-    rows.map(row => {
+  const rows = await page.$$eval("#tblTagsis tbody tr", (rows) =>
+    rows.map((row) => {
       const cells = row.querySelectorAll("td");
+
+      const uygunsuzlukText = cells[4]?.innerText.trim() || "";
+      const uygunsuzlukArr = uygunsuzlukText
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
       return {
         duyuruTarihi: cells[0]?.innerText.trim() || "",
         firmaAdi: cells[1]?.innerText.trim() || "",
         marka: cells[2]?.innerText.trim() || "",
         urunAdi: cells[3]?.innerText.trim() || "",
-        urunCesidi: cells[4]?.innerText.trim() || "",
-        uygunsuzluk: cells[5]?.innerText.trim() || "",
-        partiNo: cells[6]?.innerText.trim() || "",
-        ilce: cells[7]?.innerText.trim() || "",
-        il: cells[8]?.innerText.trim() || "",
-        urunGrubu: cells[9]?.innerText.trim() || "",
+        uygunsuzluk: uygunsuzlukArr,
+        partiNo: cells[5]?.innerText.trim() || "",
+        ilce: cells[6]?.innerText.trim() || "",
+        il: cells[7]?.innerText.trim() || "",
+        urunGrubu: cells[8]?.innerText.trim() || "",
       };
     })
   );
 
   console.log(`Toplam kayıt: ${rows.length}`);
 
-  // JSON dosyasına kaydet (varsa eskiyi sil)
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(rows, null, 2));
-
   console.log(`Tüm veriler '${OUTPUT_FILE}' dosyasına kaydedildi.`);
 
+  await GidaModel.deleteMany({});
+  await GidaModel.insertMany(rows);
+  console.log("Veriler MongoDB'ye kaydedildi.");
+
   await browser.close();
+  await mongoose.disconnect();
 })();
